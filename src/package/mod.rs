@@ -14,14 +14,14 @@ pub use self::error::{Error, Result};
 use super::Config as ProgramConfig;
 
 #[derive(Debug)]
-pub struct Package {
+pub struct Package<'a> {
     path: PathBuf,
     config: Config,
-    program_config: ProgramConfig,
+    program_config: &'a ProgramConfig,
 }
 
-impl Package {
-    pub fn new<P: AsRef<Path>>(relative_path: P, program_config: ProgramConfig) -> Result<Package> {
+impl<'a> Package<'a> {
+    pub fn new<P: AsRef<Path>>(relative_path: P, program_config: &ProgramConfig) -> Result<Package> {
         let path = canonicalize(relative_path)?;
         if !path.is_dir() {
             return Err(Error::NotDirectoryError(path));
