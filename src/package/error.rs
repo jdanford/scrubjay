@@ -1,5 +1,5 @@
 use std::io;
-use std::path::PathBuf;
+use std::path::{PathBuf, StripPrefixError};
 use std::result;
 
 use ignore;
@@ -9,10 +9,11 @@ pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Error {
-    NotDirectoryError(PathBuf),
     CommandError(String),
     IoError(io::Error),
     IgnoreError(ignore::Error),
+    NotDirectoryError(PathBuf),
+    PathError(StripPrefixError),
     TomlError(toml::de::Error),
 }
 
@@ -25,6 +26,12 @@ impl From<io::Error> for Error {
 impl From<ignore::Error> for Error {
     fn from(error: ignore::Error) -> Error {
         Error::IgnoreError(error)
+    }
+}
+
+impl From<StripPrefixError> for Error {
+    fn from(error: StripPrefixError) -> Error {
+        Error::PathError(error)
     }
 }
 

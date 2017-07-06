@@ -36,6 +36,15 @@ impl<'a> Package<'a> {
         })
     }
 
+    fn relative_path(&self, absolute_path: &Path) -> Result<&Path> {
+        Ok(absolute_path.strip_prefix(&self.path)?)
+    }
+
+    fn target_path(&self, source_path: &Path) -> Result<PathBuf> {
+        let relative_path = self.relative_path(source_path)?;
+        Ok(self.path.join(relative_path))
+    }
+
     fn build_walker(&self) -> Result<Walk> {
         let overrides = self.build_overrides()?;
         Ok(WalkBuilder::new(&self.path).hidden(false).git_global(true).overrides(overrides).build())
