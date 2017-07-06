@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use ignore::{Walk, WalkBuilder};
+use ignore::overrides::{Override, OverrideBuilder};
 
 pub use self::config::{Config, Hook};
 pub use self::error::{Error, Result};
@@ -35,8 +36,20 @@ impl Package {
         })
     }
 
-    fn build_walker(&self) -> Walk {
-        WalkBuilder::new(&self.path).hidden(false).git_global(true).build()
+    fn build_walker(&self) -> Result<Walk> {
+        let overrides = self.build_overrides()?;
+        Ok(WalkBuilder::new(&self.path).hidden(false).git_global(true).overrides(overrides).build())
+    }
+
+    fn build_overrides(&self) -> Result<Override> {
+        let mut builder = OverrideBuilder::new(&self.path);
+        builder.add(config::DEFAULT_FILENAME)?;
+
+        for script_name in self.config.script_names() {
+            builder.add(script_name);
+        }
+
+        Ok(builder.build()?)
     }
 
     fn run_hook(&self, hook: &Hook) -> Result<()> {

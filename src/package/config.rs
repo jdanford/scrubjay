@@ -14,6 +14,12 @@ pub struct Hook {
     pub script: Option<String>,
 }
 
+impl Hook {
+    fn script_name(&self) -> Option<&str> {
+        self.script.as_ref().map(String::as_str)
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct Hooks {
     pub pre_install: Option<Hook>,
@@ -45,5 +51,16 @@ impl Config {
         path.push(directory);
         path.push(DEFAULT_FILENAME);
         Config::from_path(path)
+    }
+
+    pub fn script_names(&self) -> Vec<&str> {
+        let hooks = vec![
+            self.hooks.pre_install.as_ref(),
+            self.hooks.post_install.as_ref(),
+            self.hooks.pre_uninstall.as_ref(),
+            self.hooks.post_uninstall.as_ref(),
+        ];
+
+        hooks.iter().filter_map(|&hook| hook).filter_map(Hook::script_name).collect()
     }
 }
