@@ -3,9 +3,12 @@ use std::path::{PathBuf, StripPrefixError};
 use std::result;
 
 use ignore;
+use shellexpand;
 use toml;
 
 pub type Result<T> = result::Result<T, Error>;
+
+type ShellLookupError = shellexpand::LookupError<String>;
 
 #[derive(Debug)]
 pub enum Error {
@@ -14,6 +17,7 @@ pub enum Error {
     IgnoreError(ignore::Error),
     NotDirectoryError(PathBuf),
     PathError(StripPrefixError),
+    ShellLookupError(ShellLookupError),
     TomlError(toml::de::Error),
 }
 
@@ -32,6 +36,12 @@ impl From<ignore::Error> for Error {
 impl From<StripPrefixError> for Error {
     fn from(error: StripPrefixError) -> Error {
         Error::PathError(error)
+    }
+}
+
+impl From<ShellLookupError> for Error {
+    fn from(error: ShellLookupError) -> Error {
+        Error::ShellLookupError(error)
     }
 }
 

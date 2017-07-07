@@ -20,7 +20,7 @@ impl Hook {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct Hooks {
     pub pre_install: Option<Hook>,
     pub post_install: Option<Hook>,
@@ -28,10 +28,10 @@ pub struct Hooks {
     pub post_uninstall: Option<Hook>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct Config {
-    target: Option<String>,
-    hooks: Hooks,
+    pub target: Option<String>,
+    pub hooks: Hooks,
 }
 
 impl Config {
@@ -39,11 +39,17 @@ impl Config {
         toml::from_str(toml_str).map_err(Error::from)
     }
 
-    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Config> {
-        let mut file = File::open(path)?;
+    pub fn from_file(file: &mut File) -> Result<Config> {
         let mut toml_str = String::new();
         file.read_to_string(&mut toml_str)?;
         Config::from_str(toml_str.as_str())
+    }
+
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Config> {
+        match File::open(path) {
+            Ok(ref mut file) => Config::from_file(file),
+            Err(_) => Ok(Config::default())
+        }
     }
 
     pub fn from_dir<P: AsRef<Path>>(directory: P) -> Result<Config> {

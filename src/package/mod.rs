@@ -13,6 +13,9 @@ pub use self::error::{Error, Result};
 
 use super::Config as ProgramConfig;
 
+const DEFAULT_TARGET: &'static str = "~";
+const IGNORE_FILENAME: &'static str = ".ignore";
+
 #[derive(Debug)]
 pub struct Package<'a> {
     path: PathBuf,
@@ -36,13 +39,30 @@ impl<'a> Package<'a> {
         })
     }
 
-    fn relative_path(&self, absolute_path: &Path) -> Result<&Path> {
-        Ok(absolute_path.strip_prefix(&self.path)?)
+    pub fn print_links(&self) -> Result<()> {
+        let walker = self.build_walker()?;
+        for entry_result in walker {
+            let entry = entry_result?;
+            let source_path = entry.path();
+            if source_path == &self.path {
+                continue;
+            }
+
+            let target_path = self.target_path(source_path)?;
+            println!("{} => {}", source_path.to_string_lossy(), target_path.to_string_lossy());
+        }
+
+        Ok(())
+    }
+
+    fn target_root(&self) -> &Path {
+        let path_str = self.config.target.as_ref().map_or(DEFAULT_TARGET, String::as_str);
+        Path::new(path_str)
     }
 
     fn target_path(&self, source_path: &Path) -> Result<PathBuf> {
-        let relative_path = self.relative_path(source_path)?;
-        Ok(self.path.join(relative_path))
+        let relative_path = source_path.strip_prefix(&self.path)?;
+        Ok(self.target_root().join(relative_path))
     }
 
     fn build_walker(&self) -> Result<Walk> {
@@ -52,15 +72,17 @@ impl<'a> Package<'a> {
 
     fn build_overrides(&self) -> Result<Override> {
         let mut builder = OverrideBuilder::new(&self.path);
-        builder.add(config::DEFAULT_FILENAME)?;
+        add_ignore_glob(&mut builder, IGNORE_FILENAME)?;
+        add_ignore_glob(&mut builder, config::DEFAULT_FILENAME)?;
 
         for script_name in self.config.script_names() {
-            builder.add(script_name);
+            add_ignore_glob(&mut builder, script_name)?;
         }
 
         Ok(builder.build()?)
     }
 
+    #[allow(dead_code)]
     fn run_hook(&self, hook: &Hook) -> Result<()> {
         if let Some(ref command) = hook.command {
             self.run_command(Command::new("sh").arg("-c").arg(command).current_dir(&self.path))
@@ -81,4 +103,11 @@ impl<'a> Package<'a> {
             Err(Error::CommandError(message))
         }
     }
+}
+
+fn add_ignore_glob(builder: &mut OverrideBuilder, glob: &str) -> Result<()> {
+    // overrides use inverted logic, i.e. "!" means to ignore instead of whitelist
+    let inverted_glob = format!("!{}", glob);
+    let _ = builder.add(&inverted_glob)?;
+    Ok(())
 }
