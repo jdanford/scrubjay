@@ -3,6 +3,10 @@ name = "scrubjay"
 version = "0.1.0"
 authors = ["jordandanford@gmail.com"]
 
+[[bin]]
+path = "src/main.rs"
+name = "sj"
+
 [dependencies]
 clap = "2.19"
 ignore = "0.2"
