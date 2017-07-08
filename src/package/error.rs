@@ -1,14 +1,13 @@
+use std::env;
 use std::io;
 use std::path::{PathBuf, StripPrefixError};
 use std::result;
 
 use ignore;
-use shellexpand;
+use shellexpand::LookupError;
 use toml;
 
 pub type Result<T> = result::Result<T, Error>;
-
-type ShellLookupError = shellexpand::LookupError<String>;
 
 #[derive(Debug)]
 pub enum Error {
@@ -17,7 +16,7 @@ pub enum Error {
     IgnoreError(ignore::Error),
     NotDirectoryError(PathBuf),
     PathError(StripPrefixError),
-    ShellLookupError(ShellLookupError),
+    VarError(env::VarError),
     TomlError(toml::de::Error),
 }
 
@@ -33,15 +32,21 @@ impl From<ignore::Error> for Error {
     }
 }
 
+impl From<LookupError<env::VarError>> for Error {
+    fn from(error: LookupError<env::VarError>) -> Error {
+        Error::VarError(error.cause)
+    }
+}
+
 impl From<StripPrefixError> for Error {
     fn from(error: StripPrefixError) -> Error {
         Error::PathError(error)
     }
 }
 
-impl From<ShellLookupError> for Error {
-    fn from(error: ShellLookupError) -> Error {
-        Error::ShellLookupError(error)
+impl From<env::VarError> for Error {
+    fn from(error: env::VarError) -> Error {
+        Error::VarError(error)
     }
 }
 

@@ -7,6 +7,7 @@ use std::process::Command;
 
 use ignore::{Walk, WalkBuilder};
 use ignore::overrides::{Override, OverrideBuilder};
+use shellexpand;
 
 pub use self::config::{Config, Hook};
 pub use self::error::{Error, Result};
@@ -55,14 +56,16 @@ impl<'a> Package<'a> {
         Ok(())
     }
 
-    fn target_root(&self) -> &Path {
+    fn target_root(&self) -> Result<PathBuf> {
         let path_str = self.config.target.as_ref().map_or(DEFAULT_TARGET, String::as_str);
-        Path::new(path_str)
+        let full_path_str = shellexpand::full(path_str)?.into_owned();
+        Ok(PathBuf::from(full_path_str))
     }
 
     fn target_path(&self, source_path: &Path) -> Result<PathBuf> {
         let relative_path = source_path.strip_prefix(&self.path)?;
-        Ok(self.target_root().join(relative_path))
+        let target_root = self.target_root()?;
+        Ok(target_root.join(relative_path))
     }
 
     fn build_walker(&self) -> Result<Walk> {
@@ -106,7 +109,6 @@ impl<'a> Package<'a> {
 }
 
 fn add_ignore_glob(builder: &mut OverrideBuilder, glob: &str) -> Result<()> {
-    // overrides use inverted logic, i.e. "!" means to ignore instead of whitelist
     let inverted_glob = format!("!{}", glob);
     let _ = builder.add(&inverted_glob)?;
     Ok(())
