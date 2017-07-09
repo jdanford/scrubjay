@@ -5,7 +5,7 @@ use std::fs::canonicalize;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use ignore::{Walk, WalkBuilder};
+use ignore::{DirEntry, Walk, WalkBuilder};
 use ignore::overrides::{Override, OverrideBuilder};
 use shellexpand;
 
@@ -16,6 +16,47 @@ use super::Config as ProgramConfig;
 
 const DEFAULT_TARGET: &'static str = "~";
 const IGNORE_FILENAME: &'static str = ".ignore";
+
+pub struct Link {
+    pub entry: DirEntry,
+    pub target_path: PathBuf,
+}
+
+pub struct Links<'a> {
+    package: &'a Package<'a>,
+    walker: Walk,
+}
+
+impl<'a> Links<'a> {
+    fn new(package: &'a Package) -> Result<Links<'a>> {
+        let mut walker = package.build_walker()?;
+        walker.next().unwrap()?;
+
+        Ok(Links {
+            package: package,
+            walker: walker,
+        })
+    }
+}
+
+impl<'a> Iterator for Links<'a> {
+    type Item = Result<Link>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.walker.next() {
+            Some(Ok(entry)) => {
+                if entry.path() == &self.package.path {
+                    self.next()
+                } else {
+                    let link_result = self.package.target_path(entry.path()).map(|target_path| Link {entry: entry, target_path: target_path});
+                    Some(link_result)
+                }
+            }
+            Some(Err(err)) => Some(Err(Error::IgnoreError(err))),
+            None => None,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct Package<'a> {
@@ -40,17 +81,15 @@ impl<'a> Package<'a> {
         })
     }
 
-    pub fn print_links(&self) -> Result<()> {
-        let walker = self.build_walker()?;
-        for entry_result in walker {
-            let entry = entry_result?;
-            let source_path = entry.path();
-            if source_path == &self.path {
-                continue;
-            }
+    pub fn links(&'a self) -> Result<Links<'a>> {
+        Links::new(&self)
+    }
 
-            let target_path = self.target_path(source_path)?;
-            println!("{} => {}", source_path.to_string_lossy(), target_path.to_string_lossy());
+    pub fn print_links(&self) -> Result<()> {
+        for link_result in self.links()? {
+            let link = link_result?;
+            let source_path = link.entry.path();
+            println!("{} => {}", source_path.to_string_lossy(), link.target_path.to_string_lossy());
         }
 
         Ok(())
@@ -87,8 +126,8 @@ impl<'a> Package<'a> {
 
     #[allow(dead_code)]
     fn run_hook(&self, hook: &Hook) -> Result<()> {
-        if let Some(ref command) = hook.command {
-            self.run_command(Command::new("sh").arg("-c").arg(command).current_dir(&self.path))
+        if let Some(ref command_str) = hook.command {
+            self.run_command(Command::new("sh").arg("-c").arg(command_str).current_dir(&self.path))
         } else if let Some(ref script) = hook.script {
             let script_path = self.path.join(script);
             self.run_command(Command::new(script_path).current_dir(&self.path))
