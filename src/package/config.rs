@@ -48,7 +48,7 @@ impl Config {
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Config> {
         match File::open(path) {
             Ok(ref mut file) => Config::from_file(file),
-            Err(_) => Ok(Config::default())
+            Err(_) => Ok(Config::default()),
         }
     }
 
@@ -67,6 +67,10 @@ impl Config {
             self.hooks.post_uninstall.as_ref(),
         ];
 
-        hooks.iter().filter_map(|&hook| hook).filter_map(Hook::script_name).collect()
+        hooks
+            .iter()
+            .filter_map(|&hook| hook)
+            .filter_map(Hook::script_name)
+            .collect()
     }
 }

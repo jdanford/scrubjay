@@ -48,7 +48,12 @@ impl<'a> Iterator for Links<'a> {
                 if entry.path() == &self.package.path {
                     self.next()
                 } else {
-                    let link_result = self.package.target_path(entry.path()).map(|target_path| Link {entry: entry, target_path: target_path});
+                    let link_result = self.package.target_path(entry.path()).map(|target_path| {
+                        Link {
+                            entry: entry,
+                            target_path: target_path,
+                        }
+                    });
                     Some(link_result)
                 }
             }
@@ -66,7 +71,10 @@ pub struct Package<'a> {
 }
 
 impl<'a> Package<'a> {
-    pub fn new<P: AsRef<Path>>(relative_path: P, program_config: &ProgramConfig) -> Result<Package> {
+    pub fn new<P: AsRef<Path>>(
+        relative_path: P,
+        program_config: &ProgramConfig,
+    ) -> Result<Package> {
         let path = canonicalize(relative_path)?;
         if !path.is_dir() {
             return Err(Error::NotDirectoryError(path));
@@ -89,14 +97,21 @@ impl<'a> Package<'a> {
         for link_result in self.links()? {
             let link = link_result?;
             let source_path = link.entry.path();
-            println!("{} => {}", source_path.to_string_lossy(), link.target_path.to_string_lossy());
+            println!(
+                "{} => {}",
+                source_path.to_string_lossy(),
+                link.target_path.to_string_lossy()
+            );
         }
 
         Ok(())
     }
 
     fn target_root(&self) -> Result<PathBuf> {
-        let path_str = self.config.target.as_ref().map_or(DEFAULT_TARGET, String::as_str);
+        let path_str = self.config.target.as_ref().map_or(
+            DEFAULT_TARGET,
+            String::as_str,
+        );
         let full_path_str = shellexpand::full(path_str)?.into_owned();
         Ok(PathBuf::from(full_path_str))
     }
@@ -109,7 +124,13 @@ impl<'a> Package<'a> {
 
     fn build_walker(&self) -> Result<Walk> {
         let overrides = self.build_overrides()?;
-        Ok(WalkBuilder::new(&self.path).hidden(false).git_global(true).overrides(overrides).build())
+        Ok(
+            WalkBuilder::new(&self.path)
+                .hidden(false)
+                .git_global(true)
+                .overrides(overrides)
+                .build(),
+        )
     }
 
     fn build_overrides(&self) -> Result<Override> {
@@ -127,7 +148,9 @@ impl<'a> Package<'a> {
     #[allow(dead_code)]
     fn run_hook(&self, hook: &Hook) -> Result<()> {
         if let Some(ref command_str) = hook.command {
-            self.run_command(Command::new("sh").arg("-c").arg(command_str).current_dir(&self.path))
+            self.run_command(Command::new("sh").arg("-c").arg(command_str).current_dir(
+                &self.path,
+            ))
         } else if let Some(ref script) = hook.script {
             let script_path = self.path.join(script);
             self.run_command(Command::new(script_path).current_dir(&self.path))
