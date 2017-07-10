@@ -12,9 +12,11 @@ pub type Result<T> = result::Result<T, Error>;
 #[derive(Debug)]
 pub enum Error {
     CommandError(String),
+    FileExistsError(PathBuf),
     IoError(io::Error),
     IgnoreError(ignore::Error),
     NotDirectoryError(PathBuf),
+    NotSymlinkError(PathBuf),
     PathError(StripPrefixError),
     VarError(env::VarError),
     TomlError(toml::de::Error),
