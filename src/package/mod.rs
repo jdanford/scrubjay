@@ -1,69 +1,26 @@
-pub mod config;
-pub mod error;
+mod config;
+mod error;
+mod links;
 
 use std::fs;
 use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use ignore::{DirEntry, Walk, WalkBuilder};
+use colored::*;
+use ignore::{Walk, WalkBuilder};
 use ignore::overrides::{Override, OverrideBuilder};
 use shellexpand;
 
 pub use self::config::{Config, Hook};
 pub use self::error::{Error, Result};
+pub use self::links::{Link, Links};
 
 use super::Config as ProgramConfig;
 
 const DEFAULT_TARGET: &'static str = "~";
 const IGNORE_FILENAME: &'static str = ".ignore";
 const INDENT: &'static str = "‣ ";
-
-pub struct Link {
-    pub entry: DirEntry,
-    pub target_path: PathBuf,
-}
-
-pub struct Links<'a> {
-    package: &'a Package<'a>,
-    walker: Walk,
-}
-
-impl<'a> Links<'a> {
-    fn new(package: &'a Package) -> Result<Links<'a>> {
-        let mut walker = package.build_walker()?;
-        walker.next().unwrap()?;
-
-        Ok(Links {
-            package: package,
-            walker: walker,
-        })
-    }
-}
-
-impl<'a> Iterator for Links<'a> {
-    type Item = Result<Link>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.walker.next() {
-            Some(Ok(entry)) => {
-                if entry.path() == &self.package.path {
-                    self.next()
-                } else {
-                    let link_result = self.package.target_path(entry.path()).map(|target_path| {
-                        Link {
-                            entry: entry,
-                            target_path: target_path,
-                        }
-                    });
-                    Some(link_result)
-                }
-            }
-            Some(Err(err)) => Some(Err(Error::IgnoreError(err))),
-            None => None,
-        }
-    }
-}
 
 pub struct Package<'a> {
     path: PathBuf,
@@ -72,10 +29,11 @@ pub struct Package<'a> {
 }
 
 impl<'a> Package<'a> {
-    pub fn new<P: AsRef<Path>>(
-        relative_path: P,
-        program_config: &ProgramConfig,
-    ) -> Result<Package> {
+    pub fn new(relative_path: &Path, program_config: &'a ProgramConfig) -> Result<Package<'a>> {
+        if !relative_path.exists() {
+            return Err(Error::FileDoesNotExistError(relative_path.into()));
+        }
+
         let path = fs::canonicalize(relative_path)?;
         if !path.is_dir() {
             return Err(Error::NotDirectoryError(path));
@@ -94,14 +52,19 @@ impl<'a> Package<'a> {
         if self.config.target.is_some() {
             let target_root = self.target_root()?;
             println!(
-                "Installing {} to {}...",
-                self.path.display(),
-                target_root.display(),
+                "{} {} {} {}{}",
+                "Installing".green(),
+                self.path_str(&self.path),
+                "to".green(),
+                self.path_str(&target_root),
+                "...".green(),
             );
         } else {
             println!(
-                "Installing {}...",
-                self.path.display(),
+                "{} {}{}",
+                "Installing".green(),
+                self.path_str(&self.path),
+                "...".green(),
             );
         }
 
@@ -115,10 +78,10 @@ impl<'a> Package<'a> {
         self.try_run_hook(self.config.hooks.post_install.as_ref())?;
 
         println!(
-            "Installed {}",
-            self.path.display(),
+            "{} {}",
+            "Installed".green(),
+            self.path_str(&self.path),
         );
-
         Ok(())
     }
 
@@ -126,14 +89,19 @@ impl<'a> Package<'a> {
         if self.config.target.is_some() {
             let target_root = self.target_root()?;
             println!(
-                "Uninstalling {} from {}...",
-                self.path.display(),
-                target_root.display(),
+                "{} {} {} {}{}",
+                "Uninstalling".green(),
+                self.path_str(&self.path),
+                "from".green(),
+                self.path_str(&target_root),
+                "...".green(),
             );
         } else {
             println!(
-                "Uninstalling {}...",
-                self.path.display(),
+                "{} {}{}",
+                "Uninstalling".green(),
+                self.path_str(&self.path),
+                "...".green(),
             );
         }
 
@@ -147,10 +115,10 @@ impl<'a> Package<'a> {
         self.try_run_hook(self.config.hooks.post_uninstall.as_ref())?;
 
         println!(
-            "Uninstalled {}",
-            self.path.display(),
+            "{} {}",
+            "Uninstalled".green(),
+            self.path_str(&self.path),
         );
-
         Ok(())
     }
 
@@ -158,14 +126,19 @@ impl<'a> Package<'a> {
         if self.config.target.is_some() {
             let target_root = self.target_root()?;
             println!(
-                "Reinstalling {} to {}...",
-                self.path.display(),
-                target_root.display(),
+                "{} {} {} {}{}",
+                "Reinstalling".green(),
+                self.path_str(&self.path),
+                "to".green(),
+                self.path_str(&target_root),
+                "...".green(),
             );
         } else {
             println!(
-                "Reinstalling {}...",
-                self.path.display(),
+                "{} {}{}",
+                "Reinstalling".green(),
+                self.path_str(&self.path),
+                "...".green(),
             );
         }
 
@@ -187,8 +160,9 @@ impl<'a> Package<'a> {
         self.try_run_hook(self.config.hooks.post_install.as_ref())?;
 
         println!(
-            "Reinstalled {}",
-            self.path.display(),
+            "{} {}",
+            "Reinstalled".green(),
+            self.path_str(&self.path),
         );
         Ok(())
     }
@@ -203,7 +177,15 @@ impl<'a> Package<'a> {
             symlink(source_path, &link.target_path)?;
         }
 
-        println!("{}Created {}", INDENT, link.target_path.display());
+        if self.program_config.verbose {
+            println!(
+                "{}{} {}",
+                INDENT,
+                "Created".cyan(),
+                self.path_str(&link.target_path)
+            );
+        }
+
         Ok(())
     }
 
@@ -218,7 +200,15 @@ impl<'a> Package<'a> {
             }
         }
 
-        println!("{}Removed {}", INDENT, link.target_path.display());
+        if self.program_config.verbose {
+            println!(
+                "{}{} {}",
+                INDENT,
+                "Removed".red(),
+                self.path_str(&link.target_path)
+            );
+        }
+
         Ok(())
     }
 
@@ -232,27 +222,35 @@ impl<'a> Package<'a> {
 
     fn run_hook(&self, hook: &Hook) -> Result<()> {
         if let Some(ref command_str) = hook.command {
-            println!("{}Running command {}", INDENT, command_str);
-
-            if !self.program_config.dry_run {
-                self.run_command(Command::new("sh").arg("-c").arg(command_str).current_dir(
-                    &self.path,
-                ))
-            } else {
-                Ok(())
-            }
-        } else if let Some(ref script) = hook.script {
-            let script_path = self.path.join(script);
-            println!("{}Running script {}", INDENT, script_path.display());
-
-            if !self.program_config.dry_run {
-                self.run_command(Command::new(script_path).current_dir(&self.path))
-            } else {
-                Ok(())
-            }
+            self.run_command_str(command_str)
+        } else if let Some(ref script_name) = hook.script {
+            self.run_script_name(script_name)
         } else {
             Ok(())
         }
+    }
+
+    fn run_command_str(&self, command_str: &str) -> Result<()> {
+        if self.program_config.verbose {
+            println!(
+                "{}{} `{}`{}",
+                INDENT,
+                "Running command".magenta(),
+                command_str,
+                "...".magenta()
+            );
+        }
+
+        if !self.program_config.dry_run {
+            self.run_command(
+                Command::new("sh")
+                    .arg("-c")
+                    .arg(command_str)
+                    .current_dir(&self.path),
+            )?;
+        }
+
+        Ok(())
     }
 
     fn run_command(&self, command: &mut Command) -> Result<()> {
@@ -263,6 +261,28 @@ impl<'a> Package<'a> {
             let message = String::from_utf8_lossy(&output.stderr).into_owned();
             Err(Error::CommandError(message))
         }
+    }
+
+    fn run_script_name(&self, script_name: &str) -> Result<()> {
+        let script_path = self.path.join(script_name);
+
+        if self.program_config.verbose {
+            println!(
+                "{}{} {}{}",
+                INDENT,
+                "Running script".magenta(),
+                self.path_str(&script_path),
+                "...".magenta()
+            );
+        }
+
+        if !self.program_config.dry_run {
+            self.run_command(
+                Command::new(script_path).current_dir(&self.path),
+            )?;
+        }
+
+        Ok(())
     }
 
     pub fn links(&'a self) -> Result<Links<'a>> {
@@ -307,6 +327,25 @@ impl<'a> Package<'a> {
 
         Ok(builder.build()?)
     }
+
+    fn path_str(&'a self, absolute_path: &'a Path) -> ColoredString {
+        let path = if absolute_path == self.path {
+            absolute_path
+        } else if let Ok(relative_path) = absolute_path.strip_prefix(&self.path) {
+            relative_path
+        } else {
+            absolute_path
+        };
+
+        let raw_str = path.to_string_lossy();
+        let safe_str = if let Some(_) = raw_str.find(char::is_whitespace) {
+            format!("`{}`", raw_str)
+        } else {
+            raw_str.to_string()
+        };
+
+        safe_str.bold()
+    }
 }
 
 fn add_ignore_glob(builder: &mut OverrideBuilder, glob: &str) -> Result<()> {
@@ -315,7 +354,7 @@ fn add_ignore_glob(builder: &mut OverrideBuilder, glob: &str) -> Result<()> {
     Ok(())
 }
 
-fn is_symlink<P: AsRef<Path>>(path: P) -> Result<bool> {
+fn is_symlink(path: &Path) -> Result<bool> {
     let metadata = fs::symlink_metadata(path)?;
     Ok(metadata.file_type().is_symlink())
 }

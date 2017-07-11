@@ -9,6 +9,7 @@ name = "sj"
 
 [dependencies]
 clap = "2.19"
+colored = "1.5"
 ignore = "0.2"
 serde = "1.0"
 serde_derive = "1.0"
