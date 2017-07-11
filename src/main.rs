@@ -1,33 +1,34 @@
 extern crate colored;
 extern crate scrubjay;
 
-use std::env;
 use std::path::PathBuf;
 
 use colored::*;
-use scrubjay::config::Config;
+use scrubjay::config::{Action, Config};
+use scrubjay::error::Error;
 use scrubjay::package::Package;
-use scrubjay::package::Result;
 
-const ERROR: &'static str = "Error:";
+fn try_main() -> Result<(), Error> {
+    let config = Config::from_args()?;
 
-fn install_packages(config: &Config) -> Result<()> {
-    let package_names = env::args().skip(1);
-    for package_name in package_names {
+    for package_name in config.package_names.iter() {
         let package_path = PathBuf::from(package_name);
-        let package = Package::new(&package_path, config)?;
-        package.install()?;
+        let package = Package::new(&package_path, &config)?;
+
+        match config.action {
+            Action::Install => package.install()?,
+            Action::Uninstall => package.uninstall()?,
+            Action::Reinstall => package.reinstall()?,
+        };
     }
 
     Ok(())
 }
 
 fn main() {
-    let config = Config {
-        dry_run: true,
-        verbose: true,
-    };
-    if let Err(err) = install_packages(&config) {
-        println!("{} {:?}", ERROR.red().bold(), err);
+    match try_main() {
+        Err(Error::ArgError(error)) => error.exit(),
+        Err(error) => println!("{} {:?}", "error:".red().bold(), error),
+        _ => {}
     }
 }

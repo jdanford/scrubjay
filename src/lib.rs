@@ -8,6 +8,7 @@ extern crate serde_derive;
 extern crate shellexpand;
 
 pub mod config;
+pub mod error;
 pub mod package;
 
 pub use self::config::Config;

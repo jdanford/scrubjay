@@ -45,7 +45,7 @@ impl<'a> Iterator for Links<'a> {
                     Some(link_result)
                 }
             }
-            Some(Err(err)) => Some(Err(Error::IgnoreError(err))),
+            Some(Err(error)) => Some(Err(Error::IgnoreError(error))),
             None => None,
         }
     }

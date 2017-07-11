@@ -1,7 +1,7 @@
 [package]
 name = "scrubjay"
 version = "0.1.0"
-authors = ["jordandanford@gmail.com"]
+authors = ["Jordan Danford <jordandanford@gmail.com>"]
 
 [[bin]]
 path = "src/main.rs"
