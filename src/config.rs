@@ -38,17 +38,17 @@ pub fn build_app() -> App<'static, 'static> {
         ))
         .subcommand(
             SubCommand::with_name("install")
-                .about("installs the provided package(s)")
+                .about("Installs the provided package(s)")
                 .arg(package_arg.clone()),
         )
         .subcommand(
             SubCommand::with_name("uninstall")
-                .about("uninstalls the provided package(s)")
+                .about("Uninstalls the provided package(s)")
                 .arg(package_arg.clone()),
         )
         .subcommand(
             SubCommand::with_name("reinstall")
-                .about("reinstalls the provided package(s)")
+                .about("Reinstalls the provided package(s)")
                 .arg(package_arg.clone()),
         )
 }

@@ -8,6 +8,9 @@ use scrubjay::package::Package;
 
 fn main_safe() -> Result<(), Error> {
     let config = Config::from_args()?;
+    if config.dry_run {
+        println!("(Performing dry run)");
+    }
 
     for package_name in config.package_names.iter() {
         let package_path = PathBuf::from(package_name);
