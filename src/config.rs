@@ -27,9 +27,7 @@ pub fn build_app() -> App<'static, 'static> {
         .setting(AppSettings::VersionlessSubcommands)
         .version(env!("CARGO_PKG_VERSION"))
         .author(env!("CARGO_PKG_AUTHORS"))
-        .about(
-            "A little tool to keep your config files all nice and orderly",
-        )
+        .about(env!("CARGO_PKG_DESCRIPTION"))
         .arg(Arg::with_name("dry-run").short("d").long("dry-run").help(
             "Simulates actions without making any changes",
         ))

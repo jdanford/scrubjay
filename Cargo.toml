@@ -2,6 +2,12 @@
 name = "scrubjay"
 version = "0.1.0"
 authors = ["Jordan Danford <jordandanford@gmail.com>"]
+description = "A little tool to keep your config files all nice and orderly"
+documentation = "https://github.com/jdanford/scrubjay"
+homepage = "https://github.com/jdanford/scrubjay"
+repository = "https://github.com/jdanford/scrubjay"
+readme = "README.md"
+license = "Unlicense"
 
 [[bin]]
 path = "src/main.rs"
