@@ -1,4 +1,7 @@
+use std::process;
+
 use clap;
+use colored::*;
 
 use super::package;
 
@@ -6,7 +9,18 @@ use super::package;
 pub enum Error {
     ArgError(clap::Error),
     PackageError(package::Error),
-    InvalidSubcommand(String),
+}
+
+impl Error {
+    pub fn exit(self) -> ! {
+        match self {
+            Error::ArgError(error) => error.exit(),
+            Error::PackageError(error) => {
+                println!("{} {}", "error:".red().bold(), error);
+                process::exit(1)
+            }
+        }
+    }
 }
 
 impl From<clap::Error> for Error {

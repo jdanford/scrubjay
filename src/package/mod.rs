@@ -243,6 +243,7 @@ impl<'a> Package<'a> {
 
         if !self.program_config.dry_run {
             self.run_command(
+                command_str,
                 Command::new("sh")
                     .arg("-c")
                     .arg(command_str)
@@ -253,13 +254,13 @@ impl<'a> Package<'a> {
         Ok(())
     }
 
-    fn run_command(&self, command: &mut Command) -> Result<()> {
+    fn run_command(&self, command_str: &str, command: &mut Command) -> Result<()> {
         let output = command.output()?;
         if output.status.success() {
             Ok(())
         } else {
             let message = String::from_utf8_lossy(&output.stderr).into_owned();
-            Err(Error::CommandError(message))
+            Err(Error::CommandError(command_str.to_owned(), message))
         }
     }
 
@@ -278,6 +279,7 @@ impl<'a> Package<'a> {
 
         if !self.program_config.dry_run {
             self.run_command(
+                script_name,
                 Command::new(script_path).current_dir(&self.path),
             )?;
         }

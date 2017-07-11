@@ -1,14 +1,12 @@
-extern crate colored;
 extern crate scrubjay;
 
 use std::path::PathBuf;
 
-use colored::*;
 use scrubjay::config::{Action, Config};
 use scrubjay::error::Error;
 use scrubjay::package::Package;
 
-fn try_main() -> Result<(), Error> {
+fn main_safe() -> Result<(), Error> {
     let config = Config::from_args()?;
 
     for package_name in config.package_names.iter() {
@@ -26,9 +24,7 @@ fn try_main() -> Result<(), Error> {
 }
 
 fn main() {
-    match try_main() {
-        Err(Error::ArgError(error)) => error.exit(),
-        Err(error) => println!("{} {:?}", "error:".red().bold(), error),
-        _ => {}
+    if let Err(error) = main_safe() {
+        error.exit();
     }
 }
