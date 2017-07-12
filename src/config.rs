@@ -16,38 +16,46 @@ pub struct Config {
 }
 
 pub fn build_app() -> App<'static, 'static> {
-    let package_arg = Arg::with_name("packages")
+    let packages_arg = Arg::with_name("packages")
         .value_name("PACKAGE")
         .required(true)
         .min_values(1);
 
+    let dry_run_arg = Arg::with_name("dry-run").short("d").long("dry-run").help(
+        "Simulates actions without making any changes",
+    );
+
+    let verbose_arg = Arg::with_name("verbose").short("v").long("verbose").help(
+        "Enables verbose output",
+    );
+
     App::new("Scrubjay")
-        .setting(AppSettings::ColorAuto)
-        .setting(AppSettings::SubcommandRequiredElseHelp)
-        .setting(AppSettings::VersionlessSubcommands)
         .version(env!("CARGO_PKG_VERSION"))
         .author(env!("CARGO_PKG_AUTHORS"))
         .about(env!("CARGO_PKG_DESCRIPTION"))
-        .arg(Arg::with_name("dry-run").short("d").long("dry-run").help(
-            "Simulates actions without making any changes",
-        ))
-        .arg(Arg::with_name("verbose").short("v").long("verbose").help(
-            "Enables verbose output",
-        ))
+        .setting(AppSettings::ColorAuto)
+        .setting(AppSettings::SubcommandRequiredElseHelp)
+        .setting(AppSettings::VersionlessSubcommands)
         .subcommand(
             SubCommand::with_name("install")
                 .about("Installs the provided package(s)")
-                .arg(package_arg.clone()),
+                .arg(packages_arg.clone())
+                .arg(dry_run_arg.clone())
+                .arg(verbose_arg.clone()),
         )
         .subcommand(
             SubCommand::with_name("uninstall")
                 .about("Uninstalls the provided package(s)")
-                .arg(package_arg.clone()),
+                .arg(packages_arg.clone())
+                .arg(dry_run_arg.clone())
+                .arg(verbose_arg.clone()),
         )
         .subcommand(
             SubCommand::with_name("reinstall")
                 .about("Reinstalls the provided package(s)")
-                .arg(package_arg.clone()),
+                .arg(packages_arg.clone())
+                .arg(dry_run_arg.clone())
+                .arg(verbose_arg.clone()),
         )
 }
 
@@ -55,19 +63,18 @@ impl Config {
     pub fn from_args() -> Result<Config, Error> {
         let app = build_app();
         let matches = app.get_matches_safe()?;
-
-        let (action, package_names) = match matches.subcommand() {
-            ("install", Some(submatches)) => (Action::Install, package_names(submatches)),
-            ("uninstall", Some(submatches)) => (Action::Uninstall, package_names(submatches)),
-            ("reinstall", Some(submatches)) => (Action::Reinstall, package_names(submatches)),
+        let (action, submatches) = match matches.subcommand() {
+            ("install", Some(submatches)) => (Action::Install, submatches),
+            ("uninstall", Some(submatches)) => (Action::Uninstall, submatches),
+            ("reinstall", Some(submatches)) => (Action::Reinstall, submatches),
             _ => unreachable!(),
         };
 
         Ok(Config {
             action: action,
-            package_names: package_names,
-            dry_run: matches.is_present("dry-run"),
-            verbose: matches.is_present("verbose"),
+            package_names: package_names(submatches),
+            dry_run: submatches.is_present("dry-run"),
+            verbose: submatches.is_present("verbose"),
         })
     }
 }
