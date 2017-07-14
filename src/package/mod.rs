@@ -1,3 +1,4 @@
+#[macro_use]
 mod config;
 mod error;
 mod links;
@@ -26,6 +27,14 @@ pub struct Package<'a> {
     path: PathBuf,
     config: Config,
     program_config: &'a ProgramConfig,
+}
+
+macro_rules! maybe_run_hook {
+    ($self_expr:expr, $hook_expr:expr, $field:ident) => {
+        if let Some(ref hook) = hook_field!($hook_expr, $field) {
+            $self_expr.run_hook(hook)?;
+        }
+    }
 }
 
 impl<'a> Package<'a> {
@@ -68,14 +77,14 @@ impl<'a> Package<'a> {
             );
         }
 
-        self.try_run_hook(self.config.hooks.pre_install.as_ref())?;
+        maybe_run_hook!(self, self.config.hooks, pre_install);
 
         for link_result in self.links()? {
             let link = link_result?;
             self.create_link(&link)?;
         }
 
-        self.try_run_hook(self.config.hooks.post_install.as_ref())?;
+        maybe_run_hook!(self, self.config.hooks, post_install);
 
         println!(
             "{} {}",
@@ -105,14 +114,14 @@ impl<'a> Package<'a> {
             );
         }
 
-        self.try_run_hook(self.config.hooks.pre_uninstall.as_ref())?;
+        maybe_run_hook!(self, self.config.hooks, pre_uninstall);
 
         for link_result in self.links()? {
             let link = link_result?;
             self.remove_link(&link)?;
         }
 
-        self.try_run_hook(self.config.hooks.post_uninstall.as_ref())?;
+        maybe_run_hook!(self, self.config.hooks, post_uninstall);
 
         println!(
             "{} {}",
@@ -142,22 +151,23 @@ impl<'a> Package<'a> {
             );
         }
 
-        self.try_run_hook(self.config.hooks.pre_uninstall.as_ref())?;
+        maybe_run_hook!(self, self.config.hooks, pre_uninstall);
 
         for link_result in self.links()? {
             let link = link_result?;
             self.remove_link(&link)?;
         }
 
-        self.try_run_hook(self.config.hooks.post_uninstall.as_ref())?;
-        self.try_run_hook(self.config.hooks.pre_install.as_ref())?;
+        maybe_run_hook!(self, self.config.hooks, post_uninstall);
+
+        maybe_run_hook!(self, self.config.hooks, pre_install);
 
         for link_result in self.links()? {
             let link = link_result?;
             self.create_link(&link)?;
         }
 
-        self.try_run_hook(self.config.hooks.post_install.as_ref())?;
+        maybe_run_hook!(self, self.config.hooks, post_install);
 
         println!(
             "{} {}",
@@ -170,7 +180,11 @@ impl<'a> Package<'a> {
     fn create_link(&self, link: &Link) -> Result<()> {
         if !self.program_config.dry_run {
             if link.target_path.exists() {
-                return Err(Error::FileExistsError(link.target_path.clone()));
+                if self.program_config.force {
+                    remove_path(&link.target_path)?;
+                } else {
+                    return Err(Error::FileExistsError(link.target_path.clone()));
+                }
             }
 
             let source_path = link.entry.path();
@@ -191,13 +205,11 @@ impl<'a> Package<'a> {
 
     fn remove_link(&self, link: &Link) -> Result<()> {
         if !self.program_config.dry_run {
-            if !is_symlink(&link.target_path)? {
+            if !self.program_config.force && !is_symlink(&link.target_path)? {
                 return Err(Error::NotSymlinkError(link.target_path.clone()));
-            } else if link.target_path.is_dir() {
-                fs::remove_dir_all(&link.target_path)?;
-            } else {
-                fs::remove_file(&link.target_path)?;
             }
+
+            remove_path(&link.target_path)?;
         }
 
         if self.program_config.verbose {
@@ -207,14 +219,6 @@ impl<'a> Package<'a> {
                 "Removed".red(),
                 self.path_str(&link.target_path)
             );
-        }
-
-        Ok(())
-    }
-
-    fn try_run_hook(&self, hook_option: Option<&Hook>) -> Result<()> {
-        if let Some(hook) = hook_option {
-            self.run_hook(hook)?;
         }
 
         Ok(())
@@ -359,4 +363,12 @@ fn add_ignore_glob(builder: &mut OverrideBuilder, glob: &str) -> Result<()> {
 fn is_symlink(path: &Path) -> Result<bool> {
     let metadata = fs::symlink_metadata(path)?;
     Ok(metadata.file_type().is_symlink())
+}
+
+fn remove_path(path: &Path) -> Result<()> {
+    if path.is_dir() {
+        Ok(fs::remove_dir_all(path)?)
+    } else {
+        Ok(fs::remove_file(path)?)
+    }
 }

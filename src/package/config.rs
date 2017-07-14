@@ -31,7 +31,13 @@ pub struct Hooks {
 #[derive(Debug, Default, Deserialize)]
 pub struct Config {
     pub target: Option<String>,
-    pub hooks: Hooks,
+    pub hooks: Option<Hooks>,
+}
+
+macro_rules! hook_field {
+    ($hook_expr:expr, $field:ident) => {
+        $hook_expr.as_ref().and_then(|ref hooks| hooks.$field.as_ref())
+    };
 }
 
 impl Config {
@@ -61,10 +67,10 @@ impl Config {
 
     pub fn script_names(&self) -> Vec<&str> {
         let hooks = vec![
-            self.hooks.pre_install.as_ref(),
-            self.hooks.post_install.as_ref(),
-            self.hooks.pre_uninstall.as_ref(),
-            self.hooks.post_uninstall.as_ref(),
+            hook_field!(self.hooks, pre_install),
+            hook_field!(self.hooks, post_install),
+            hook_field!(self.hooks, pre_uninstall),
+            hook_field!(self.hooks, post_uninstall),
         ];
 
         hooks
