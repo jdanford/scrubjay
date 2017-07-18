@@ -45,9 +45,14 @@ pub fn build_app() -> App<'static, 'static> {
         .version(env!("CARGO_PKG_VERSION"))
         .author(env!("CARGO_PKG_AUTHORS"))
         .about(env!("CARGO_PKG_DESCRIPTION"))
-        .setting(AppSettings::ColorAuto)
-        .setting(AppSettings::SubcommandRequiredElseHelp)
-        .setting(AppSettings::VersionlessSubcommands)
+        .global_settings(
+            &[
+                AppSettings::ColorAuto,
+                AppSettings::ColoredHelp,
+                AppSettings::SubcommandRequiredElseHelp,
+                AppSettings::VersionlessSubcommands,
+            ],
+        )
         .subcommand(
             SubCommand::with_name("install")
                 .about("Installs the provided package(s)")
