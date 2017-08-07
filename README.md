@@ -4,7 +4,7 @@ A little tool to keep your config files all nice and orderly, named after a cool
 
 <img src="media/scrub-jay-acorn.jpg" alt="Scrub jay carrying acorn" width="400" height="300">
 
-It is inspired by [GNU Stow](https://www.gnu.org/software/stow/) and written in Rust, leaning heavily on [BurntSushi](https://github.com/BurntSushi/)'s handy [ignore](https://github.com/BurntSushi/ripgrep/tree/master/ignore) crate.
+It is inspired by [GNU Stow](https://www.gnu.org/software/stow/) and written in [Rust](https://www.rust-lang.org/en-US/), leaning heavily on [BurntSushi](https://github.com/BurntSushi/)'s handy [ignore](https://github.com/BurntSushi/ripgrep/tree/master/ignore) crate.
 At the moment, it has been tested minimally and probably doesn't work on your machine. ✨
 
 ## Purpose
@@ -13,7 +13,7 @@ It is often desirable to keep configuration files centralized, so that they can 
 
 ## Installation
 
-The binary name for `scrubjay` is `sj`. Prebuilt binaries are not yet available, and the crate is not yet published, but if you have a new-ish version of Rust then you can clone the project and run `cargo install`.
+The binary name for Scrubjay is `sj`. Prebuilt binaries aren't available yet, and the crate hasn't been published, but if you have Rust and Cargo then you can install it with `cargo install --git https://github.com/jdanford/scrubjay`.
 
 ## Usage
 
